@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>日付印ファクトリー</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=Noto+Serif+JP:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Noto Sans JP', sans-serif;
+        }
+        .font-gothic {
+            font-family: 'Noto Sans JP', sans-serif;
+        }
+        .font-mincho {
+            font-family: 'Noto Serif JP', serif;
+        }
+        /* ボタンのクリックアニメーション */
+        .btn-active-animation {
+            transition: all 0.2s ease-in-out;
+        }
+        .btn-active-animation:active {
+            transform: scale(0.96);
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        /* Canvasの見た目上のサイズをコンテナに合わせる */
+        #stampCanvas {
+            max-width: 250px;
+            width: 100%;
+            height: auto;
+            border-radius: 50%;
+            transition: box-shadow 0.3s ease;
+            cursor: grab;
+        }
+        #stampCanvas:active {
+            cursor: grabbing;
+        }
+        html.dark #stampCanvas {
+             box-shadow: 0 10px 25px rgba(0,0,0,0.2), 0 0 0 1px rgba(255,255,255,0.05);
+        }
+    </style>
+    <script>
+        // FOUC(Flash of Unstyled Content)を防ぐため、<head>内でOSのテーマ設定を適用
+        if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+            document.documentElement.classList.add('dark');
+        } else {
+            document.documentElement.classList.remove('dark');
+        }
+    </script>
+</head>
+<body class="bg-gray-100 dark:bg-slate-900 transition-colors duration-300 flex flex-col min-h-screen">
+    <main class="flex-grow flex items-center justify-center p-4">
+        <div class="w-full max-w-4xl mx-auto">
+            <div class="bg-white/70 dark:bg-slate-800/70 backdrop-blur-xl rounded-2xl shadow-2xl shadow-blue-500/10 dark:shadow-blue-500/10 overflow-hidden border border-white/50 dark:border-slate-700/50">
+                <div class="p-6 md:p-10">
+                    <div class="text-center mb-8">
+                        <h1 class="text-3xl md:text-4xl font-bold bg-gradient-to-r from-slate-800 to-slate-600 bg-clip-text text-transparent dark:from-slate-100 dark:to-slate-300">
+                            日付印ファクトリー
+                        </h1>
+                        <p class="text-slate-500 dark:text-slate-400 mt-2">必要な情報を入力して、あなただけのスタンプを作成しましょう。</p>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12">
+                        <!-- 入力フォーム -->
+                        <div class="space-y-5">
+                            <div class="relative">
+                                <label for="line1" class="block text-sm font-bold text-slate-600 dark:text-slate-300 mb-2">上段 (役職・部署名)</label>
+                                <input type="text" id="line1" class="w-full pl-4 pr-3 py-2.5 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 dark:text-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition" value="農水相">
+                            </div>
+                            <div class="relative">
+                                <label for="date" class="block text-sm font-bold text-slate-600 dark:text-slate-300 mb-2">中段 (日付)</label>
+                                <input type="date" id="date" class="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 dark:text-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition" style="color-scheme: dark;">
+                            </div>
+                            <div class="relative">
+                                <label for="line3" class="block text-sm font-bold text-slate-600 dark:text-slate-300 mb-2">下段 (名前)</label>
+                                <input type="text" id="line3" class="w-full pl-4 pr-3 py-2.5 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 dark:text-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition" value="大泉(進)">
+                            </div>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                   <label for="font-select" class="block text-sm font-bold text-slate-600 dark:text-slate-300 mb-2">フォント</label>
+                                   <select id="font-select" class="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 dark:text-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition">
+                                       <option value="gothic" selected class="font-gothic">ゴシック</option>
+                                       <option value="mincho" class="font-mincho">明朝</option>
+                                   </select>
+                                </div>
+                                 <div>
+                                   <label for="size-select" class="block text-sm font-bold text-slate-600 dark:text-slate-300 mb-2">印影サイズ</label>
+                                   <select id="size-select" class="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 dark:text-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition">
+                                       <option value="24">大 (24mm)</option>
+                                       <option value="21" selected>中 (21mm)</option>
+                                       <option value="18">小 (18mm)</option>
+                                   </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- スタンププレビュー -->
+                        <div class="flex flex-col items-center justify-center bg-slate-100/60 dark:bg-slate-800/60 rounded-xl p-4 border border-slate-200/80 dark:border-slate-700/80">
+                            <canvas id="stampCanvas" draggable="true"></canvas>
+                            <div id="message-box" class="mt-4 text-sm text-center font-semibold text-slate-600 dark:text-slate-400 h-5"></div>
+                        </div>
+                    </div>
+
+                    <!-- 操作ボタン -->
+                    <div class="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
+                        <button id="downloadBtn" class="w-full sm:w-auto inline-flex items-center justify-center gap-2 text-white font-bold py-3 px-8 rounded-full shadow-lg shadow-blue-500/30 dark:shadow-blue-500/20 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 btn-active-animation">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                            <span>PNGでダウンロード</span>
+                        </button>
+                        <button id="downloadSvgBtn" class="w-full sm:w-auto inline-flex items-center justify-center gap-2 text-white font-bold py-3 px-8 rounded-full shadow-lg shadow-rose-500/30 dark:shadow-rose-500/20 bg-gradient-to-r from-rose-500 to-orange-500 hover:from-rose-600 hover:to-orange-600 btn-active-animation">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                            <span>SVGでダウンロード</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+    <footer class="w-full text-center py-4 text-sm text-slate-500 dark:text-slate-400">
+        © <a href="https://antas.co.jp" target="_blank" rel="noopener noreferrer" class="underline hover:text-slate-700 dark:hover:text-slate-200">ANTAS, Inc.</a>
+    </footer>
+    <canvas id="renderCanvas" class="hidden"></canvas>
+
+
+    <script>
+        // DOM要素の取得
+        const line1Input = document.getElementById('line1');
+        const dateInput = document.getElementById('date');
+        const line3Input = document.getElementById('line3');
+        const fontSelect = document.getElementById('font-select');
+        const sizeSelect = document.getElementById('size-select');
+        const previewCanvas = document.getElementById('stampCanvas');
+        const renderCanvas = document.getElementById('renderCanvas');
+        const downloadBtn = document.getElementById('downloadBtn');
+        const downloadSvgBtn = document.getElementById('downloadSvgBtn');
+        const messageBox = document.getElementById('message-box');
+        const allInputs = [line1Input, dateInput, line3Input, fontSelect, sizeSelect];
+        const RENDER_RESOLUTION = 300; // 内部描画解像度
+        const DPI = 96; // Webの標準的なDPI
+        const INCH_TO_MM = 25.4;
+
+        // OSのテーマ設定の変更をリアルタイムで監視
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
+            document.documentElement.classList.toggle('dark', e.matches);
+        });
+        
+        // --- 入力内容の保存・復元ロジック ---
+        const saveInputs = () => {
+            const inputs = {
+                line1: line1Input.value,
+                date: dateInput.value,
+                line3: line3Input.value,
+                font: fontSelect.value,
+                size: sizeSelect.value,
+            };
+            localStorage.setItem('stampGeneratorInputs', JSON.stringify(inputs));
+        };
+
+        const loadInputs = () => {
+            const savedInputs = localStorage.getItem('stampGeneratorInputs');
+            if (savedInputs) {
+                try {
+                    const inputs = JSON.parse(savedInputs);
+                    line1Input.value = inputs.line1 || '農水相';
+                    dateInput.value = inputs.date || getTodayString();
+                    line3Input.value = inputs.line3 || '大泉(進)';
+                    fontSelect.value = inputs.font || 'gothic';
+                    sizeSelect.value = inputs.size || '21';
+                } catch(e) {
+                    console.error("保存されたデータの読み込みに失敗しました。", e);
+                    setDefaultValues();
+                }
+            } else {
+                setDefaultValues();
+            }
+        };
+
+        const getTodayString = () => {
+            const today = new Date();
+            const year = today.getFullYear();
+            const month = String(today.getMonth() + 1).padStart(2, '0');
+            const day = String(today.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        };
+
+        const setDefaultValues = () => {
+            line1Input.value = '農水相';
+            dateInput.value = getTodayString();
+            line3Input.value = '大泉(進)';
+            fontSelect.value = 'gothic';
+            sizeSelect.value = '21';
+        };
+
+        // --- スタンプ描画メイン関数 ---
+        function drawStamp() {
+            const params = {
+                line1Text: line1Input.value,
+                dateText: getDateText(),
+                line3Text: line3Input.value,
+                selectedFont: fontSelect.value,
+            };
+
+            drawToCanvas(renderCanvas, RENDER_RESOLUTION, params);
+            
+            const previewCtx = previewCanvas.getContext('2d');
+            previewCanvas.width = 250;
+            previewCanvas.height = 250;
+            previewCtx.imageSmoothingQuality = 'high';
+            previewCtx.drawImage(renderCanvas, 0, 0, 250, 250);
+        }
+        
+        function getDateText() {
+            if (dateInput.value) {
+                const dateObj = new Date(dateInput.value);
+                const utcDate = new Date(dateObj.getUTCFullYear(), dateObj.getUTCMonth(), dateObj.getUTCDate());
+                return `${utcDate.getFullYear()}.${utcDate.getMonth() + 1}.${utcDate.getDate()}`;
+            }
+            return '';
+        }
+        
+        function drawToCanvas(targetCanvas, imageSize, { line1Text, dateText, line3Text, selectedFont }) {
+            targetCanvas.width = imageSize;
+            targetCanvas.height = imageSize;
+            const ctx = targetCanvas.getContext('2d');
+            ctx.clearRect(0, 0, imageSize, imageSize);
+            const centerX = imageSize / 2;
+            const centerY = imageSize / 2;
+            const radius = imageSize / 2 - (imageSize / 50);
+            const lineWidth = imageSize / 80;
+            ctx.strokeStyle = '#D12A2F';
+            ctx.fillStyle = '#D12A2F';
+            ctx.lineWidth = lineWidth;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+            ctx.stroke();
+            const sectionHeight = (radius * 2) / 3;
+            for (let i = 1; i < 3; i++) {
+                const y = centerY - radius + sectionHeight * i;
+                const xOffset = Math.sqrt(Math.max(0, radius * radius - (y - centerY) * (y - centerY)));
+                ctx.beginPath();
+                ctx.moveTo(centerX - xOffset, y);
+                ctx.lineTo(centerX + xOffset, y);
+                ctx.stroke();
+            }
+            drawTextInSection(ctx, line1Text, centerY - sectionHeight, sectionHeight, radius, centerX, centerY, selectedFont);
+            drawTextInSection(ctx, dateText, centerY, sectionHeight, radius, centerX, centerY, selectedFont);
+            drawTextInSection(ctx, line3Text, centerY + sectionHeight, sectionHeight, radius, centerX, centerY, selectedFont);
+        }
+        
+        function calculateFontSize(text, y, height, circleRadius, circleCenterX, circleCenterY, selectedFont) {
+            if (!text) return { fontSize: 0, adjustedY: y };
+            const tempCtx = document.createElement('canvas').getContext('2d');
+            const fontFamily = selectedFont === 'mincho' ? "'Noto Serif JP', serif" : "'Noto Sans JP', sans-serif";
+            let yOffset = 0;
+            const offsetFactor = 0.10; 
+            if (y < circleCenterY) yOffset = height * offsetFactor;
+            else if (y > circleCenterY) yOffset = -height * offsetFactor;
+            const adjustedY = y + yOffset;
+            let fontSize = height * 0.9;
+            while (fontSize > 5) {
+                tempCtx.font = `700 ${fontSize}px ${fontFamily}`;
+                const textHeight = fontSize;
+                const yTop = adjustedY - textHeight / 2;
+                const yBottom = adjustedY + textHeight / 2;
+                const dTop = circleRadius * circleRadius - (yTop - circleCenterY) * (yTop - circleCenterY);
+                const dBottom = circleRadius * circleRadius - (yBottom - circleCenterY) * (yBottom - circleCenterY);
+                const xOffsetTop = dTop > 0 ? Math.sqrt(dTop) : 0;
+                const xOffsetBottom = dBottom > 0 ? Math.sqrt(dBottom) : 0;
+                const horizontalMargin = 0.95; 
+                const maxWidth = 2 * Math.min(xOffsetTop, xOffsetBottom) * horizontalMargin;
+                if (tempCtx.measureText(text).width < maxWidth) break;
+                fontSize -= 1;
+            }
+            return { fontSize, adjustedY };
+        }
+        
+        function drawTextInSection(context, text, ...args) {
+            const { fontSize, adjustedY } = calculateFontSize(text, ...args);
+            if(fontSize <= 5) return;
+            const selectedFont = args[5];
+            const fontFamily = selectedFont === 'mincho' ? "'Noto Serif JP', serif" : "'Noto Sans JP', sans-serif";
+            context.font = `700 ${fontSize}px ${fontFamily}`;
+            context.fillText(text, args[3], adjustedY);
+        }
+
+        function mmToPx(mm) {
+            return (mm / INCH_TO_MM) * DPI;
+        }
+
+        function generateAndDownload(format) {
+            const outputSizeMm = parseInt(sizeSelect.value, 10);
+            const outputSizePx = Math.round(mmToPx(outputSizeMm));
+            const dateText = getDateText();
+            const line3Text = line3Input.value;
+            const safeDate = dateText.replace(/\./g, '-');
+            const safeName = line3Text.replace(/[^a-zA-Z0-9\u3040-\u30ff\u4e00-\u9faf]/g, '');
+            const filename = `stamp_${safeDate}_${safeName || 'stamp'}.${format}`;
+            
+            if (format === 'png') {
+                const tempCanvas = document.createElement('canvas');
+                tempCanvas.width = outputSizePx;
+                tempCanvas.height = outputSizePx;
+                const tempCtx = tempCanvas.getContext('2d');
+                tempCtx.imageSmoothingQuality = 'high';
+                tempCtx.drawImage(renderCanvas, 0, 0, outputSizePx, outputSizePx);
+                const a = document.createElement('a');
+                a.href = tempCanvas.toDataURL('image/png');
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+            } else if (format === 'svg') {
+                const selectedFont = fontSelect.value;
+                const centerX = RENDER_RESOLUTION / 2;
+                const centerY = RENDER_RESOLUTION / 2;
+                const radius = RENDER_RESOLUTION / 2 - (RENDER_RESOLUTION / 50);
+                const lineWidth = RENDER_RESOLUTION / 80;
+                const sectionHeight = (radius * 2) / 3;
+                const textParams = [
+                    { text: line1Input.value, y: centerY - sectionHeight },
+                    { text: dateText, y: centerY },
+                    { text: line3Input.value, y: centerY + sectionHeight },
+                ];
+                const textElements = textParams.map(({ text, y }) => {
+                    const { fontSize, adjustedY } = calculateFontSize(text, y, sectionHeight, radius, centerX, centerY, selectedFont);
+                     if (fontSize <= 5) return '';
+                    const svgFontSize = fontSize * 0.92;
+                    const fontFamily = selectedFont === 'mincho' ? "Noto Serif JP, serif" : "Noto Sans JP, sans-serif";
+                    return `<text x="${centerX}" y="${adjustedY}" font-family="${fontFamily}" font-size="${svgFontSize}" font-weight="700" text-anchor="middle" dominant-baseline="middle" fill="#D12A2F">${text}</text>`;
+                }).join('\n');
+                const y1 = centerY - radius + sectionHeight;
+                const xOffset1 = Math.sqrt(Math.max(0, radius * radius - (y1 - centerY) * (y1 - centerY)));
+                const y2 = centerY - radius + sectionHeight * 2;
+                const xOffset2 = Math.sqrt(Math.max(0, radius * radius - (y2 - centerY) * (y2 - centerY)));
+                const svgContent = `
+                    <svg width="${outputSizeMm}mm" height="${outputSizeMm}mm" viewBox="0 0 ${RENDER_RESOLUTION} ${RENDER_RESOLUTION}" xmlns="http://www.w3.org/2000/svg">
+                        <style> .stamp-el { fill: none; stroke: #D12A2F; stroke-width: ${lineWidth}; } </style>
+                        <circle class="stamp-el" cx="${centerX}" cy="${centerY}" r="${radius}"/>
+                        <line class="stamp-el" x1="${centerX - xOffset1}" y1="${y1}" x2="${centerX + xOffset1}" y2="${y1}" />
+                        <line class="stamp-el" x1="${centerX - xOffset2}" y1="${y2}" x2="${centerX + xOffset2}" y2="${y2}" />
+                        ${textElements}
+                    </svg>
+                `.trim().replace(/\s+/g, ' ');
+                const blob = new Blob([svgContent], { type: 'image/svg+xml;charset=utf-8' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            }
+        }
+        
+        // --- イベントリスナー ---
+        allInputs.forEach(input => {
+            input.addEventListener('input', () => {
+                drawStamp();
+                saveInputs();
+            });
+        });
+
+        previewCanvas.addEventListener('dragstart', (e) => {
+            const outputSizeMm = parseInt(sizeSelect.value, 10);
+            const outputSizePx = Math.round(mmToPx(outputSizeMm));
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = outputSizePx;
+            tempCanvas.height = outputSizePx;
+            const tempCtx = tempCanvas.getContext('2d');
+            tempCtx.imageSmoothingQuality = 'high';
+            tempCtx.drawImage(renderCanvas, 0, 0, outputSizePx, outputSizePx);
+            
+            const dataUrl = tempCanvas.toDataURL('image/png');
+            const dateText = getDateText();
+            const line3Text = line3Input.value;
+            const safeDate = dateText.replace(/\./g, '-');
+            const safeName = line3Text.replace(/[^a-zA-Z0-9\u3040-\u30ff\u4e00-\u9faf]/g, '');
+            const filename = `stamp_${safeDate}_${safeName || 'stamp'}.png`;
+            e.dataTransfer.setData('DownloadURL', `image/png:${filename}:${dataUrl}`);
+        });
+        
+        downloadBtn.addEventListener('click', () => generateAndDownload('png'));
+        downloadSvgBtn.addEventListener('click', () => generateAndDownload('svg'));
+        
+        // --- 初期化 ---
+        window.onload = () => {
+            loadInputs();
+            drawStamp();
+        };
+
+    </script>
+</body>
+</html>
