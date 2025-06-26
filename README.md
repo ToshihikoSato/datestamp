@@ -13,3 +13,9 @@ Create a Japanese-style date stamp (a.k.a. hanko).
 ## Specifications
 
 For more details, please see the [specifications](./SPEC.md).
+
+## Try It Now!
+
+No installation is required. A live version of this app is available on GitHub Pages.
+
+[Click here](https://toshihikosato.github.io/datestamp/) to start creating your stamp!
