@@ -1,6 +1,8 @@
 # datestamp
 This is a web application that generates circular, Japanese-style date stamps (hanko).
 
+![screen shot](images/screenshot.png)
+
 ## Sample image
 
 ![date stamp sample image](images/sample.png)
