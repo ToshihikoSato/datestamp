@@ -9,6 +9,7 @@ Create a Japanese-style date stamp (a.k.a. hanko).
 - Real-time Preview: Instantly see your stamp as you type.
 - Multiple Formats: Download your stamp as a high-quality PNG or a scalable SVG.
 - Drag & Drop: Simply drag the stamp preview to your desktop or other applications.
+- No Server Needed: The entire application is contained in a single HTML file. Just open it in your browser to use it, even offline.
 
 ## Specifications
 
